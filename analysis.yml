@@ -1,0 +1,28 @@
+# gitlab-ci-template/analysis.yml
+
+.analysis:
+  image: docker
+  services:
+    - docker:dind
+  before_script:
+    - echo "MAST_REST_API=$MAST_REST_API" >> .env
+    - echo "MAST_REST_API_KEY=$MAST_REST_API_KEY" >> .env
+    - echo "SCORE_THRESHOLD=$SCORE_THRESHOLD" >> .env
+    - echo "MAX_ANALYSIS_TIME=$MAX_ANALYSIS_TIME" >> .env
+    - echo "BINARY_FILE_PATH=$(basename $BINARY_FILE_PATH)" >> .env
+    - echo "RESULTS_DIR=$RESULTS_DIR" >> .env
+    - echo "Starting analysis for app"
+  script:
+    - docker create --env-file .env -v $CI_PROJECT_DIR/$RESULTS_DIR:/usr/src/app/$RESULTS_DIR --name kryptowire_analysis kryptowireowner/gitlab-ci:$VERSION npm start
+    - docker cp $BINARY_FILE_PATH kryptowire_analysis:/usr/src/app/
+    - docker start kryptowire_analysis -a
+  after_script:
+    - echo "Analysis done!"
+  artifacts:
+    reports:
+      dast: $RESULTS_DIR/gl-dast-report.json
+  rules:
+    - if: $VERSION == null
+      variables:
+        VERSION: "latest"
+    - if: $VERSION != null
