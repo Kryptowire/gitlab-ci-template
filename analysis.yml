@@ -4,19 +4,28 @@
   image: docker
   services:
     - docker:dind
-  before_script:
-    - echo "MAST_REST_API=$MAST_REST_API" >> .env
-    - echo "MAST_REST_API_KEY=$MAST_REST_API_KEY" >> .env
-    - echo "SCORE_THRESHOLD=$SCORE_THRESHOLD" >> .env
-    - echo "MAX_ANALYSIS_TIME=$MAX_ANALYSIS_TIME" >> .env
-    - echo "BINARY_FILE_PATH=$(basename $BINARY_FILE_PATH)" >> .env
-    - echo "RESULTS_DIR=$RESULTS_DIR" >> .env
-    - echo "Starting analysis for app"
   script:
-    - docker create --env-file .env -v $CI_PROJECT_DIR/$RESULTS_DIR:/usr/src/app/$RESULTS_DIR --name kryptowire_analysis kryptowireowner/gitlab-ci:$VERSION npm start
-    - docker cp $BINARY_FILE_PATH kryptowire_analysis:/usr/src/app/
+    - echo "Starting analysis for app"
+
+    - BIN_NAME="$(basename "$BINARY_FILE_PATH")"
+    - RESULTS_MOUNT="$CI_PROJECT_DIR/$RESULTS_DIR"
+    - >
+      docker create
+      --name kryptowire_analysis
+      -v "$RESULTS_MOUNT:/usr/src/app/$RESULTS_DIR"
+      -e MAST_REST_API="$MAST_REST_API"
+      -e MAST_REST_API_KEY="$MAST_REST_API_KEY"
+      -e SCORE_THRESHOLD="$SCORE_THRESHOLD"
+      -e MAX_ANALYSIS_TIME="$MAX_ANALYSIS_TIME"
+      -e BINARY_FILE_PATH="$BIN_NAME"
+      -e RESULTS_DIR="$RESULTS_DIR"
+      kryptowireowner/gitlab-ci:"$VERSION"
+      npm start
+
+    - docker cp "$BINARY_FILE_PATH" "kryptowire_analysis:/usr/src/app/$BIN_NAME"
+
     - docker start kryptowire_analysis -a
-  after_script:
+
     - echo "Analysis done!"
   artifacts:
     reports:
